@@ -1,27 +1,11 @@
-local Keys = {
-  ["ESC"] = 322, ["F1"] = 288, ["F2"] = 289, ["F3"] = 170, ["F5"] = 166, ["F6"] = 167, ["F7"] = 168, ["F8"] = 169, ["F9"] = 56, ["F10"] = 57,
-  ["~"] = 243, ["1"] = 157, ["2"] = 158, ["3"] = 160, ["4"] = 164, ["5"] = 165, ["6"] = 159, ["7"] = 161, ["8"] = 162, ["9"] = 163, ["-"] = 84, ["="] = 83, ["BACKSPACE"] = 177,
-  ["TAB"] = 37, ["Q"] = 44, ["W"] = 32, ["E"] = 38, ["R"] = 45, ["T"] = 245, ["Y"] = 246, ["U"] = 303, ["P"] = 199, ["["] = 39, ["]"] = 40, ["ENTER"] = 18,
-  ["CAPS"] = 137, ["A"] = 34, ["S"] = 8, ["D"] = 9, ["F"] = 23, ["G"] = 47, ["H"] = 74, ["K"] = 311, ["L"] = 182,
-  ["LEFTSHIFT"] = 21, ["Z"] = 20, ["X"] = 73, ["C"] = 26, ["V"] = 0, ["B"] = 29, ["N"] = 249, ["M"] = 244, [","] = 82, ["."] = 81,
-  ["LEFTCTRL"] = 36, ["LEFTALT"] = 19, ["SPACE"] = 22, ["RIGHTCTRL"] = 70,
-  ["HOME"] = 213, ["PAGEUP"] = 10, ["PAGEDOWN"] = 11, ["DELETE"] = 178,
-  ["LEFT"] = 174, ["RIGHT"] = 175, ["TOP"] = 27, ["DOWN"] = 173,
-  ["NENTER"] = 201, ["N4"] = 108, ["N5"] = 60, ["N6"] = 107, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118
-}
-
 local GUI                     = {}
-local HasAlreadyEnteredMarker = false
-local LastZone                = nil
+local HasAlreadyEnteredMarker, IsInShopMenu = false, false
+local LastZone, CurrentVehicleData, CurrentActionMsg, CurrentAction
 local PlayerData              = {}
-local CurrentAction           = nil
-local CurrentActionMsg        = ''
 local CurrentActionData       = {}
-local IsInShopMenu            = false
 local Categories              = {}
 local Vehicles                = {}
 local LastVehicles            = {}
-local CurrentVehicleData      = nil
 
 ESX                           = nil
 GUI.Time                      = 0
@@ -97,27 +81,23 @@ function OpenShopMenu ()
     })
   end
 
-  ESX.UI.Menu.Open(
-    'default', GetCurrentResourceName(), 'vehicle_shop',
-    {
+  ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'vehicle_shop', {
       title    = _U('car_dealer'),
       align    = 'top-left',
       elements = elements,
-    },
-    function (data, menu)
+    }, function (data, menu)
+
       local vehicleData = vehiclesByCategory[data.current.name][data.current.value + 1]
 
-      ESX.UI.Menu.Open(
-        'default', GetCurrentResourceName(), 'shop_confirm',
-        {
+      ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'shop_confirm', {
           title = _U('buy') .. ' ' .. vehicleData.name .. ' ' .. _U('for') .. ' ' .. vehicleData.price .. ' ?',
           align = 'top-left',
           elements = {
             {label = _U('yes'), value = 'yes'},
             {label = _U('no'), value = 'no'},
           },
-        },
-        function (data2, menu2)
+        }, function (data2, menu2)
+
           if data2.current.value == 'yes' then
             if Config.EnablePlayerManagement then
               ESX.TriggerServerCallback('esx_dockshop:buyVehicleSociety', function (hasEnoughMoney)
@@ -149,17 +129,14 @@ function OpenShopMenu ()
               local playerData = ESX.GetPlayerData()
 
               if Config.EnableSocietyOwnedVehicles and playerData.job.grade_name == 'boss' then
-                ESX.UI.Menu.Open(
-                  'default', GetCurrentResourceName(), 'shop_confirm_buy_type',
-                  {
+                ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'shop_confirm_buy_type', {
                     title = 'Type d\'achat',
                     align = 'top-left',
                     elements = {
                       {label = 'Personnel', value = 'personnal'},
                       {label = 'Societé',   value = 'society'},
                     },
-                  },
-                  function (data3, menu3)
+                  }, function (data3, menu3)
 
                     if data3.current.value == 'personnal' then
                       ESX.TriggerServerCallback('esx_dockshop:buyVehicle', function (hasEnoughMoney)
@@ -232,11 +209,9 @@ function OpenShopMenu ()
                         end
                       end, playerData.job.name, vehicleData.model)
                     end
-                  end,
-                  function (data3, menu3)
+                  end, function (data3, menu3)
                     menu3.close()
-                  end
-                )
+                  end)
               else
                 ESX.TriggerServerCallback('esx_dockshop:buyVehicle', function (hasEnoughMoney)
                   if hasEnoughMoney then
@@ -276,17 +251,12 @@ function OpenShopMenu ()
           end
 
           if data2.current.value == 'no' then
-
           end
 
-        end,
-        function (data2, menu2)
+        end, function (data2, menu2)
           menu2.close()
-        end
-      )
-
-    end,
-    function (data, menu)
+        end)
+    end, function (data, menu)
 
       menu.close()
 
@@ -308,9 +278,8 @@ function OpenShopMenu ()
       end
 
       IsInShopMenu = false
+    end, function (data, menu)
 
-    end,
-    function (data, menu)
       local vehicleData = vehiclesByCategory[data.current.name][data.current.value + 1]
       local playerPed   = GetPlayerPed(-1)
 
@@ -325,8 +294,7 @@ function OpenShopMenu ()
         TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
         FreezeEntityPosition(vehicle, true)
       end)
-    end
-  )
+    end)
 
   DeleteShopInside2Vehicles()
 
@@ -339,16 +307,13 @@ function OpenShopMenu ()
     TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
     FreezeEntityPosition(vehicle, true)
   end)
-
 end
 
 function OpenResellerMenu ()
 
   ESX.UI.Menu.CloseAll()
 
-  ESX.UI.Menu.Open(
-    'default', GetCurrentResourceName(), 'reseller',
-    {
+  ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'reseller', {
       title    = _U('car_dealer'),
       align    = 'top-left',
       elements = {
@@ -362,8 +327,8 @@ function OpenResellerMenu ()
         {label = _U('deposit_stock'),                  value = 'put_stock'},
         {label = _U('take_stock'),                     value = 'get_stock'},
       }
-    },
-    function (data, menu)
+    }, function (data, menu)
+
       if data.current.value == 'put_stock' then
         OpenPutStocksMenu()
       end
@@ -382,12 +347,9 @@ function OpenResellerMenu ()
 
       if data.current.value == 'create_bill' then
 
-        ESX.UI.Menu.Open(
-          'dialog', GetCurrentResourceName(), 'set_vehicle_owner_sell_amount',
-          {
+        ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'set_vehicle_owner_sell_amount', {
             title = _U('invoice_amount'),
-          },
-          function (data2, menu)
+          }, function (data2, menu)
 
             local amount = tonumber(data2.value)
 
@@ -404,11 +366,9 @@ function OpenResellerMenu ()
                 TriggerServerEvent('esx_billing:sendBill', GetPlayerServerId(closestPlayer), 'society_dock', _U('car_dealer'), tonumber(data2.value))
               end
             end
-          end,
-          function (data2, menu)
+          end, function (data2, menu)
             menu.close()
-          end
-        )
+          end)
       end
 
       if data.current.value == 'get_rented_vehicles' then
@@ -458,12 +418,10 @@ function OpenResellerMenu ()
       end
 
       if data.current.value == 'set_vehicle_owner_rent' then
-        ESX.UI.Menu.Open(
-          'dialog', GetCurrentResourceName(), 'set_vehicle_owner_rent_amount',
-          {
+        ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'set_vehicle_owner_rent_amount', {
             title = _U('rental_amount'),
-          },
-          function (data2, menu)
+          }, function (data2, menu)
+
             local amount = tonumber(data2.value)
 
             if amount == nil then
@@ -492,22 +450,17 @@ function OpenResellerMenu ()
                 TriggerServerEvent('esx_dockshop:setVehicleForAllPlayers', vehicleProps, Config.Zones.ShopInside2.Pos.x, Config.Zones.ShopInside2.Pos.y, Config.Zones.ShopInside2.Pos.z, 5.0)
               end
             end
-          end,
-          function (data2, menu)
+          end, function (data2, menu)
             menu.close()
-          end
-        )
+          end)
       end
-    end,
-    function (data, menu)
+    end, function (data, menu)
       menu.close()
 
       CurrentAction     = 'reseller_menu'
       CurrentActionMsg  = _U('shop_menu')
       CurrentActionData = {}
-    end
-  )
-
+    end)
 end
 
 function OpenPersonnalVehicleMenu ()
@@ -529,14 +482,12 @@ function OpenPersonnalVehicleMenu ()
       table.insert(elements, {label = vehicles[i].name .. ' [' .. vehicles[i].plate .. ']', value = vehicles[i]})
     end
 
-    ESX.UI.Menu.Open(
-      'default', GetCurrentResourceName(), 'personnal_vehicle',
-      {
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'personnal_vehicle', {
         title    = _U('personal_vehicle'),
         align    = 'top-left',
         elements = elements,
-      },
-      function (data, menu)
+      }, function (data, menu)
+
         local playerPed   = GetPlayerPed(-1)
         local coords      = GetEntityCoords(playerPed)
         local heading     = GetEntityHeading(playerPed)
@@ -552,11 +503,9 @@ function OpenPersonnalVehicleMenu ()
           ESX.Game.SetVehicleProperties(vehicle, vehicleData)
           TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
         end)
-      end,
-      function (data, menu)
+      end, function (data, menu)
         menu.close()
-      end
-    )
+      end)
   end)
 end
 
@@ -568,14 +517,12 @@ function OpenPopVehicleMenu ()
       table.insert(elements, {label = vehicles[i].name .. ' €' .. vehicles[i].price, value = vehicles[i].name})
     end
 
-    ESX.UI.Menu.Open(
-      'default', GetCurrentResourceName(), 'commercial_vehicles',
-      {
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'commercial_vehicles', {
         title    = _U('vehicle_dealer'),
         align    = 'top-left',
         elements = elements,
-      },
-      function (data, menu)
+      }, function (data, menu)
+
         local model = data.current.value
 
         DeleteShopInside2Vehicles()
@@ -594,11 +541,9 @@ function OpenPopVehicleMenu ()
             end
           end
         end)
-      end,
-      function (data, menu)
+      end, function (data, menu)
         menu.close()
-      end
-    )
+      end)
   end)
 end
 
@@ -610,9 +555,7 @@ function OpenRentedVehiclesMenu ()
       table.insert(elements, {label = vehicles[i].playerName .. ' : ' .. vehicles[i].name .. ' - ' .. vehicles[i].plate, value = vehicles[i].name})
     end
 
-    ESX.UI.Menu.Open(
-      'default', GetCurrentResourceName(), 'rented_vehicles',
-      {
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'rented_vehicles', {
         title    = _U('rent_vehicle'),
         align    = 'top-left',
         elements = elements,
@@ -620,25 +563,22 @@ function OpenRentedVehiclesMenu ()
       nil,
       function (data, menu)
         menu.close()
-      end
-    )
+      end)
   end)
 end
 
 function OpenBossActions2Menu ()
   ESX.UI.Menu.CloseAll()
 
-  ESX.UI.Menu.Open(
-    'default', GetCurrentResourceName(), 'reseller',
-    {
+  ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'reseller', {
       title    = _U('dealer_boss'),
       align    = 'top-left',
       elements = {
         {label = _U('buy_vehicle'), value = 'buy_vehicle'},
         {label = 'Action Patron',   value = 'boss_actions'},
       },
-    },
-    function (data, menu)
+    }, function (data, menu)
+
       if data.current.value == 'buy_vehicle' then
         OpenShopMenu()
       end
@@ -648,17 +588,14 @@ function OpenBossActions2Menu ()
           menu.close()
         end)
       end
-    end,
-    function (data, menu)
+    end, function (data, menu)
       menu.close()
 
       CurrentAction     = 'boss_actions_menu'
       CurrentActionMsg  = _U('shop_menu')
       CurrentActionData = {}
-    end
-  )
+    end)
 end
-
 
 function OpenGetStocksMenu ()
   ESX.TriggerServerCallback('esx_dockshop:getStockItems', function (items)
@@ -668,21 +605,17 @@ function OpenGetStocksMenu ()
       table.insert(elements, {label = 'x' .. items[i].count .. ' ' .. items[i].label, value = items[i].name})
     end
 
-    ESX.UI.Menu.Open(
-      'default', GetCurrentResourceName(), 'stocks_menu',
-      {
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'stocks_menu', {
         title    = _U('dealership_stock'),
         elements = elements,
-      },
-      function (data, menu)
+      }, function (data, menu)
+
         local itemName = data.current.value
 
-        ESX.UI.Menu.Open(
-          'dialog', GetCurrentResourceName(), 'stocks_menu_get_item_count',
-          {
+        ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'stocks_menu_get_item_count', {
             title = _U('amount'),
-          },
-          function (data2, menu2)
+          }, function (data2, menu2)
+
             local count = tonumber(data2.value)
 
             if count == nil then
@@ -694,16 +627,12 @@ function OpenGetStocksMenu ()
 
               TriggerServerEvent('esx_dockshop:getStockItem', itemName, count)
             end
-          end,
-          function (data2, menu2)
+          end, function (data2, menu2)
             menu2.close()
-          end
-        )
-      end,
-      function (data, menu)
+          end)
+      end, function (data, menu)
         menu.close()
-      end
-    )
+      end)
   end)
 end
 
@@ -719,21 +648,17 @@ function OpenPutStocksMenu ()
       end
     end
 
-    ESX.UI.Menu.Open(
-      'default', GetCurrentResourceName(), 'stocks_menu',
-      {
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'stocks_menu', {
         title    = _U('inventory'),
         elements = elements,
-      },
-      function (data, menu)
+      }, function (data, menu)
+
         local itemName = data.current.value
 
-        ESX.UI.Menu.Open(
-          'dialog', GetCurrentResourceName(), 'stocks_menu_put_item_count',
-          {
+        ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'stocks_menu_put_item_count', {
             title = _U('amount'),
-          },
-          function (data2, menu2)
+          }, function (data2, menu2)
+
             local count = tonumber(data2.value)
 
             if count == nil then
@@ -745,20 +670,14 @@ function OpenPutStocksMenu ()
 
               TriggerServerEvent('esx_dockshop:putStockItems', itemName, count)
             end
-
-          end,
-          function (data2, menu2)
+          end, function (data2, menu2)
             menu2.close()
-          end
-        )
-      end,
-      function (data, menu)
+          end)
+      end, function (data, menu)
         menu.close()
-      end
-    )
+      end)
   end)
 end
-
 
 RegisterNetEvent('esx:playerLoaded')
 AddEventHandler('esx:playerLoaded', function (xPlayer)
@@ -954,7 +873,7 @@ Citizen.CreateThread(function ()
       AddTextComponentString(CurrentActionMsg)
       DisplayHelpTextFromStringLabel(0, 0, 1, -1)
 
-      if IsControlPressed(0, Keys['E']) and (GetGameTimer() - GUI.Time) > 300 then
+      if IsControlPressed(0, 38) and (GetGameTimer() - GUI.Time) > 300 then
         if CurrentAction == 'shop_menu' then
           OpenShopMenu()
         end
